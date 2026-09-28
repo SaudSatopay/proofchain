@@ -1,0 +1,31 @@
+# OPTIONAL — PostgreSQL for teams that prefer it over the zero-setup SQLite
+# default. The non-Docker workflow (README "Running locally") is the primary,
+# fully supported path and requires none of this.
+#
+#   docker compose -f docker/docker-compose.yml up -d
+#
+# then in apps/api/prisma/schema.prisma set  provider = "postgresql"
+# and in .env:
+#   DATABASE_URL=postgresql://proofchain:proofchain@localhost:5432/proofchain
+# and run `npm run db:setup`.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: proofchain-postgres
+    environment:
+      POSTGRES_USER: proofchain
+      POSTGRES_PASSWORD: proofchain
+      POSTGRES_DB: proofchain
+    ports:
+      - '5432:5432'
+    volumes:
+      - proofchain-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U proofchain']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  proofchain-pgdata:

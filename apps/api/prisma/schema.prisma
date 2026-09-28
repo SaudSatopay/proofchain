@@ -1,0 +1,159 @@
+// ProofChain application database.
+//
+// ROLE SEPARATION (critical architectural principle):
+//   The BLOCKCHAIN is the source of truth for provenance: fingerprints,
+//   ownership, lineage and audit events. This database is an INDEX built
+//   from chain events plus application-only data (users, verification
+//   attempts, AI analyses). Every chain-derived row can be rebuilt by
+//   replaying contract events — see src/services/indexer.ts.
+//
+// PROVIDER: SQLite by default so the project runs with zero external
+// services. To use PostgreSQL, change provider to "postgresql" and point
+// DATABASE_URL at your server; the schema is deliberately kept compatible
+// (string-typed enums, JSON stored as text).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Application users. Application roles (ADMIN/RESEARCHER/DEVELOPER/
+// AUDITOR/VIEWER) authorize API operations only — they are deliberately
+// separate from blockchain ownership, which is held by wallet addresses.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  displayName  String
+  role         String   // ADMIN | RESEARCHER | DEVELOPER | AUDITOR | VIEWER
+  createdAt    DateTime @default(now())
+}
+
+// Index of on-chain artifacts, enriched with off-chain metadata.
+model Artifact {
+  id              String   @id @default(cuid())
+  chainId         Int      @unique // on-chain artifact id
+  artifactType    String   // DATASET | MODEL | SOFTWARE
+  name            String
+  description     String   @default("")
+  version         String
+  creator         String   @default("")
+  fieldsJson      String   @default("{}") // type-specific fields (JSON)
+  artifactHash    String   @unique // 0x-prefixed bytes32 (sha256 or merkle root)
+  merkleRoot      String?
+  fileCount       Int      @default(1)
+  sizeBytes       Int      @default(0)
+  metadataCid     String
+  manifestCid     String?
+  storageMode     String   @default("local") // local | pinata
+  ownerAddress    String
+  parentChainId   Int?
+  rootChainId     Int
+  active          Boolean  @default(true)
+  network         String
+  contractAddress String
+  txHash          String
+  blockNumber     Int
+  gasUsed         String?
+  registeredAt    DateTime // block timestamp
+  createdAt       DateTime @default(now())
+
+  @@index([artifactType])
+  @@index([ownerAddress])
+  @@index([rootChainId])
+}
+
+// Audit trail of provenance-relevant events (chain events + verifications).
+model ProvenanceEvent {
+  id             String   @id @default(cuid())
+  type           String   // ARTIFACT_REGISTERED | VERSION_CREATED | OWNERSHIP_TRANSFERRED | ARTIFACT_REVOKED | VERIFICATION_PASSED | INTEGRITY_MISMATCH
+  artifactChainId Int?
+  txHash         String?
+  blockNumber    Int?
+  dataJson       String   @default("{}")
+  createdAt      DateTime @default(now())
+
+  @@index([artifactChainId])
+  @@index([type])
+}
+
+// Every verification attempt, matched or not.
+model VerificationEvent {
+  id              String   @id @default(cuid())
+  artifactChainId Int?
+  matched         Boolean
+  suppliedHash    String
+  registeredHash  String?
+  method          String   // SHA256 | MERKLE
+  fileName        String
+  fileCount       Int      @default(1)
+  sizeBytes       Int      @default(0)
+  detailsJson     String   @default("{}")
+  createdAt       DateTime @default(now())
+
+  @@index([artifactChainId])
+}
+
+// AI risk analyses (produced by the FastAPI service).
+model AiAnalysis {
+  id              String   @id @default(cuid())
+  artifactChainId Int
+  riskScore       Float
+  riskLevel       String   // LOW | MEDIUM | HIGH | CRITICAL
+  anomaliesJson   String   @default("[]")
+  explanationJson String   @default("[]")
+  featuresJson    String   @default("{}")
+  modelVersion    String
+  mode            String   // ML | BASELINE
+  sampleCount     Int      @default(0)
+  featureCount    Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  @@index([artifactChainId])
+}
+
+// Cache of observed contract transactions (explorer view).
+model BlockchainTransaction {
+  id              String    @id @default(cuid())
+  txHash          String    @unique
+  blockNumber     Int
+  fromAddress     String
+  toAddress       String?
+  method          String?
+  status          String    @default("confirmed") // confirmed | failed
+  gasUsed         String?
+  artifactChainId Int?
+  network         String
+  blockTimestamp  DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([blockNumber])
+}
+
+// Indexer bookmark: last chain block replayed into this database.
+model IndexerState {
+  id              Int    @id @default(1)
+  lastBlock       Int
+  contractAddress String
+}
+
+// Two-phase registration: files are hashed + stored first, then the
+// on-chain transaction (MetaMask or server dev signer) commits the
+// fingerprint, then the prepared record is confirmed and indexed.
+model PreparedUpload {
+  id           String    @id @default(cuid())
+  artifactHash String
+  merkleRoot   String?
+  metadataCid  String
+  manifestCid  String
+  fileCount    Int
+  sizeBytes    Int
+  payloadJson  String // artifact fields captured at prepare time
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  consumedAt   DateTime?
+}

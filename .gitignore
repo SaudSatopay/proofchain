@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+*.pyc
+
+# Environment — never commit secrets
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+apps/web/dist/
+
+# Hardhat
+blockchain/cache/
+blockchain/artifacts/
+blockchain/typechain-types/
+
+# Database (SQLite dev files)
+apps/api/data/
+apps/api/prisma/data/
+*.db
+*.db-journal
+
+# Local object storage (content-addressed dev storage)
+storage/objects/
+storage/tmp/
+
+# Logs
+*.log
+logs/
+
+# OS / editor / tooling
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.claude/
+
+# Machine-specific deployment records (recreated by `npm run deploy`)
+blockchain/deployments/
+
+# Test output
+coverage/
+.pytest_cache/

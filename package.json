@@ -1,0 +1,32 @@
+{
+  "name": "proofchain",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Blockchain-backed provenance and integrity platform for AI datasets, ML models, and software artifacts.",
+  "workspaces": [
+    "packages/*",
+    "blockchain",
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "chain": "npm run node --workspace blockchain",
+    "deploy": "npm run deploy:localhost --workspace blockchain",
+    "api": "npm run dev --workspace @proofchain/api",
+    "web": "npm run dev --workspace @proofchain/web",
+    "ai": "node scripts/start-ai.mjs",
+    "dev": "node scripts/dev.mjs",
+    "db:setup": "npm run db:setup --workspace @proofchain/api",
+    "test": "npm run test --workspace @proofchain/crypto && npm run test --workspace blockchain && npm run test --workspace @proofchain/api",
+    "test:contracts": "npm run test --workspace blockchain",
+    "test:crypto": "npm run test --workspace @proofchain/crypto",
+    "test:api": "npm run test --workspace @proofchain/api",
+    "e2e": "node scripts/e2e-check.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
